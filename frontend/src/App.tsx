@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Toaster } from '@/components/ui/toaster'
@@ -16,6 +16,7 @@ import RevenuePage from '@/pages/admin/RevenuePage'
 import ServicesPage from '@/pages/admin/ServicesPage'
 import SettingsPage from '@/pages/admin/SettingsPage'
 import BookingPage from '@/pages/public/BookingPage'
+import ReportsPage from '@/pages/admin/ReportsPage'
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   const { isAuthenticated, user, isLoading } = useAuthStore()
@@ -76,6 +77,7 @@ function App() {
           <Route path="clients" element={<ClientsPage />} />
           <Route path="revenue" element={<RevenuePage />} />
           <Route path="services" element={<ServicesPage />} />
+          <Route path="reports" element={<ReportsPage />} />
           <Route
             path="settings"
             element={

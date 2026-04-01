@@ -81,3 +81,16 @@ export interface PaginatedResponse<T> {
     totalPages: number;
   };
 }
+
+  
+export interface EmailSettings {
+  id: number
+  enabled: boolean
+  smtpHost: string
+  smtpPort: number
+  smtpSecure: boolean
+  smtpUser: string | null
+  smtpPass: string | null
+  smtpFrom: string | null
+  reportEmail: string | null
+}

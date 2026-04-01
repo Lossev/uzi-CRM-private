@@ -22,6 +22,15 @@ export interface ReportData {
   chartData: { date: string; revenue: number }[];
 }
 
+export interface ReportSettings {
+  includeTotalRevenue?: boolean;
+  includeAppointmentsCount?: boolean;
+  includeAverageCheck?: boolean;
+  includeRevenueByService?: boolean;
+  includeRevenueByStaff?: boolean;
+  includeDailyRevenue?: boolean;
+}
+
 const getEmailConfig = (): EmailConfig => ({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
@@ -54,7 +63,7 @@ const formatPrice = (price: number): string => {
   }).format(price);
 };
 
-const generateReportHTML = (data: ReportData): string => {
+const generateReportHTML = (data: ReportData, settings?: ReportSettings): string => {
   const { startDate, endDate, totalRevenue, appointmentsCount, averageCheck, revenueByService, revenueByStaff, chartData } = data;
   
   const formatDate = (date: Date) => format(date, 'd MMMM yyyy', { locale: ru });
@@ -62,6 +71,15 @@ const generateReportHTML = (data: ReportData): string => {
   const topServices = revenueByService.slice(0, 5);
   const topStaff = revenueByStaff.slice(0, 5);
   const recentDays = chartData.slice(-7).reverse();
+  
+  const showTotalRevenue = settings?.includeTotalRevenue !== false;
+  const showAppointmentsCount = settings?.includeAppointmentsCount !== false;
+  const showAverageCheck = settings?.includeAverageCheck !== false;
+  const showRevenueByService = settings?.includeRevenueByService !== false;
+  const showRevenueByStaff = settings?.includeRevenueByStaff !== false;
+  const showDailyRevenue = settings?.includeDailyRevenue !== false;
+  
+  const showAnyStats = showTotalRevenue || showAppointmentsCount || showAverageCheck;
   
   return `
 <!DOCTYPE html>
@@ -86,34 +104,42 @@ const generateReportHTML = (data: ReportData): string => {
             </td>
           </tr>
           
+          ${showAnyStats ? `
           <tr>
             <td style="padding: 32px 40px;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td width="33.33%" style="padding: 0 8px;">
+                  ${showTotalRevenue ? `
+                  <td width="${showAnyStats ? 100 / [showTotalRevenue, showAppointmentsCount, showAverageCheck].filter(Boolean).length : 33.33}%" style="padding: 0 8px;">
                     <div style="background-color: #f0fdf4; border-radius: 12px; padding: 20px; text-align: center;">
                       <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Общая выручка</p>
                       <p style="margin: 0; color: #059669; font-size: 22px; font-weight: 700;">${formatPrice(totalRevenue)}</p>
                     </div>
                   </td>
-                  <td width="33.33%" style="padding: 0 8px;">
+                  ` : ''}
+                  ${showAppointmentsCount ? `
+                  <td width="${showAnyStats ? 100 / [showTotalRevenue, showAppointmentsCount, showAverageCheck].filter(Boolean).length : 33.33}%" style="padding: 0 8px;">
                     <div style="background-color: #eff6ff; border-radius: 12px; padding: 20px; text-align: center;">
                       <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Приёмов</p>
                       <p style="margin: 0; color: #2563eb; font-size: 22px; font-weight: 700;">${appointmentsCount}</p>
                     </div>
                   </td>
-                  <td width="33.33%" style="padding: 0 8px;">
+                  ` : ''}
+                  ${showAverageCheck ? `
+                  <td width="${showAnyStats ? 100 / [showTotalRevenue, showAppointmentsCount, showAverageCheck].filter(Boolean).length : 33.33}%" style="padding: 0 8px;">
                     <div style="background-color: #fef3c7; border-radius: 12px; padding: 20px; text-align: center;">
                       <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Средний чек</p>
                       <p style="margin: 0; color: #d97706; font-size: 22px; font-weight: 700;">${formatPrice(averageCheck)}</p>
                     </div>
                   </td>
+                  ` : ''}
                 </tr>
               </table>
             </td>
           </tr>
+          ` : ''}
           
-          ${topServices.length > 0 ? `
+          ${showRevenueByService && topServices.length > 0 ? `
           <tr>
             <td style="padding: 0 40px 32px 40px;">
               <h2 style="margin: 0 0 16px 0; color: #111827; font-size: 16px; font-weight: 600;">Топ услуг по выручке</h2>
@@ -137,7 +163,7 @@ const generateReportHTML = (data: ReportData): string => {
           </tr>
           ` : ''}
           
-          ${topStaff.length > 0 ? `
+          ${showRevenueByStaff && topStaff.length > 0 ? `
           <tr>
             <td style="padding: 0 40px 32px 40px;">
               <h2 style="margin: 0 0 16px 0; color: #111827; font-size: 16px; font-weight: 600;">Выручка по сотрудникам</h2>
@@ -161,7 +187,7 @@ const generateReportHTML = (data: ReportData): string => {
           </tr>
           ` : ''}
           
-          ${recentDays.length > 0 ? `
+          ${showDailyRevenue && recentDays.length > 0 ? `
           <tr>
             <td style="padding: 0 40px 32px 40px;">
               <h2 style="margin: 0 0 16px 0; color: #111827; font-size: 16px; font-weight: 600;">Выручка за последние дни</h2>
@@ -202,18 +228,28 @@ const generateReportHTML = (data: ReportData): string => {
   `.trim();
 };
 
-const generateReportText = (data: ReportData): string => {
+const generateReportText = (data: ReportData, settings?: ReportSettings): string => {
   const { startDate, endDate, totalRevenue, appointmentsCount, averageCheck, revenueByService, revenueByStaff } = data;
   
   const formatDate = (date: Date) => format(date, 'd MMMM yyyy', { locale: ru });
   
-  let text = `ОТЧЕТ ПО ВЫРУЧКЕ\n${formatDate(startDate)} — ${formatDate(endDate)}\n\n`;
-  text += `ОБЩИЕ ПОКАЗАТЕЛИ:\n`;
-  text += `Общая выручка: ${formatPrice(totalRevenue)}\n`;
-  text += `Количество приёмов: ${appointmentsCount}\n`;
-  text += `Средний чек: ${formatPrice(averageCheck)}\n\n`;
+  const showTotalRevenue = settings?.includeTotalRevenue !== false;
+  const showAppointmentsCount = settings?.includeAppointmentsCount !== false;
+  const showAverageCheck = settings?.includeAverageCheck !== false;
+  const showRevenueByService = settings?.includeRevenueByService !== false;
+  const showRevenueByStaff = settings?.includeRevenueByStaff !== false;
   
-  if (revenueByService.length > 0) {
+  let text = `ОТЧЕТ ПО ВЫРУЧКЕ\n${formatDate(startDate)} — ${formatDate(endDate)}\n\n`;
+  
+  if (showTotalRevenue || showAppointmentsCount || showAverageCheck) {
+    text += `ОБЩИЕ ПОКАЗАТЕЛИ:\n`;
+    if (showTotalRevenue) text += `Общая выручка: ${formatPrice(totalRevenue)}\n`;
+    if (showAppointmentsCount) text += `Количество приёмов: ${appointmentsCount}\n`;
+    if (showAverageCheck) text += `Средний чек: ${formatPrice(averageCheck)}\n`;
+    text += '\n';
+  }
+  
+  if (showRevenueByService && revenueByService.length > 0) {
     text += `ВЫРУЧКА ПО УСЛУГАМ:\n`;
     revenueByService.slice(0, 5).forEach((s, i) => {
       text += `${i + 1}. ${s.name}: ${formatPrice(s.revenue)}\n`;
@@ -221,7 +257,7 @@ const generateReportText = (data: ReportData): string => {
     text += '\n';
   }
   
-  if (revenueByStaff.length > 0) {
+  if (showRevenueByStaff && revenueByStaff.length > 0) {
     text += `ВЫРУЧКА ПО СОТРУДНИКАМ:\n`;
     revenueByStaff.slice(0, 5).forEach((s, i) => {
       text += `${i + 1}. ${s.name}: ${formatPrice(s.revenue)}\n`;
@@ -233,7 +269,8 @@ const generateReportText = (data: ReportData): string => {
 
 export const sendReportEmail = async (
   to: string,
-  data: ReportData
+  data: ReportData,
+  settings?: ReportSettings
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
   try {
     const config = getEmailConfig();
@@ -249,8 +286,8 @@ export const sendReportEmail = async (
     
     await transporter.verify();
     
-    const html = generateReportHTML(data);
-    const text = generateReportText(data);
+    const html = generateReportHTML(data, settings);
+    const text = generateReportText(data, settings);
     
     const info = await transporter.sendMail({
       from: `"УЗИ Диагностика" <${config.from}>`,
@@ -280,6 +317,40 @@ export const testEmailConnection = async (): Promise<{ success: boolean; error?:
     }
     
     const transporter = createTransporter();
+    await transporter.verify();
+    
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Ошибка подключения';
+    return { success: false, error: errorMessage };
+  }
+};
+
+export const testEmailConnectionWithConfig = async (config: {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+}): Promise<{ success: boolean; error?: string }> => {
+  try {
+    if (!config.user || !config.pass) {
+      return { 
+        success: false, 
+        error: 'SMTP не настроен' 
+      };
+    }
+    
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: {
+        user: config.user,
+        pass: config.pass,
+      },
+    });
+    
     await transporter.verify();
     
     return { success: true };

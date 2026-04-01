@@ -168,27 +168,23 @@ export const deleteClient = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const appointmentsCount = await prisma.appointment.count({
-      where: { clientId: parseInt(id) },
-    });
-
-    if (appointmentsCount > 0) {
-      return res.status(400).json({ 
-        error: 'Невозможно удалить клиента с историей записей' 
+    await prisma.$transaction(async (tx) => {
+      await tx.appointment.deleteMany({
+        where: { clientId: parseInt(id) },
       });
-    }
 
-    await prisma.client.delete({
-      where: { id: parseInt(id) },
-    });
+      await tx.client.delete({
+        where: { id: parseInt(id) },
+      });
 
-    await prisma.actionLog.create({
-      data: {
-        userId: req.userId!,
-        action: 'DELETE',
-        entityType: 'Client',
-        entityId: parseInt(id),
-      },
+      await tx.actionLog.create({
+        data: {
+          userId: req.userId!,
+          action: 'DELETE',
+          entityType: 'Client',
+          entityId: parseInt(id),
+        },
+      });
     });
 
     res.json({ message: 'Клиент удален' });

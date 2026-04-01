@@ -22,8 +22,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Search, Plus, Eye, Phone, Mail } from 'lucide-react'
-import { formatPrice, formatDate } from '@/lib/utils'
+import { Search, Plus, Eye, Phone, Mail, Trash2 } from 'lucide-react'
+import { formatPrice, formatDate, formatPhone, isValidPhone } from '@/lib/utils'
 import api from '@/lib/api'
 import { Client } from '@/types'
 import { useToast } from '@/hooks/use-toast'
@@ -35,12 +35,14 @@ export default function ClientsPage() {
   const [page, setPage] = useState(1)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
     notes: '',
   })
+  const [phoneError, setPhoneError] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['clients', search, page],
@@ -65,12 +67,34 @@ export default function ClientsPage() {
       toast({ title: 'Клиент создан' })
       setIsDialogOpen(false)
       setFormData({ name: '', phone: '', email: '', notes: '' })
+      setPhoneError('')
     },
     onError: (error) => {
       const axiosError = error as AxiosError<{ error?: string }>
       toast({
         title: 'Ошибка',
         description: axiosError.response?.data?.error || 'Не удалось создать клиента',
+        variant: 'destructive',
+      })
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (clientId: number) => {
+      const response = await api.delete(`/clients/${clientId}`)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] })
+      toast({ title: 'Клиент удален' })
+      setClientToDelete(null)
+    },
+    onError: (error) => {
+      const axiosError = error as AxiosError<{ error?: string }>
+      setClientToDelete(null)
+      toast({
+        title: 'Ошибка',
+        description: axiosError.response?.data?.error || 'Не удалось удалить клиента',
         variant: 'destructive',
       })
     },
@@ -83,6 +107,10 @@ export default function ClientsPage() {
         description: 'Заполните обязательные поля',
         variant: 'destructive',
       })
+      return
+    }
+    if (!isValidPhone(formData.phone)) {
+      setPhoneError('Введите корректный номер телефона')
       return
     }
     createMutation.mutate(formData)
@@ -163,6 +191,13 @@ export default function ClientsPage() {
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setClientToDelete(client)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -215,9 +250,15 @@ export default function ClientsPage() {
               <Input
                 id="phone"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, phone: formatPhone(e.target.value) })
+                  if (phoneError) setPhoneError('')
+                }}
                 placeholder="+7 (999) 123-45-67"
+                type="tel"
+                className={phoneError ? 'border-destructive' : ''}
               />
+              {phoneError && <p className="text-xs text-destructive">{phoneError}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -296,6 +337,35 @@ export default function ClientsPage() {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!clientToDelete} onOpenChange={() => setClientToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удалить клиента?</DialogTitle>
+            <DialogDescription>
+              Вы уверены, что хотите удалить клиента "{clientToDelete?.name}"? 
+              {clientToDelete?._count?.appointments ? (
+                <span className="block mt-2 text-destructive font-medium">
+                  Будут удалены все записи этого клиента ({clientToDelete._count.appointments} шт.)
+                </span>
+              ) : null}
+              Это действие нельзя отменить.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClientToDelete(null)}>
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => clientToDelete && deleteMutation.mutate(clientToDelete.id)}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Удаление...' : 'Удалить'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 
 import authRoutes from './routes/authRoutes';
 import publicRoutes from './routes/publicRoutes';
@@ -23,6 +24,8 @@ app.use(cors({
 
 app.use(express.json());
 
+app.use(express.static(path.join(__dirname, '../frontend')));
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -35,6 +38,12 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/recurring', recurringRoutes);
 app.use('/api/waitlist', waitlistRoutes);
+
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+  }
+});
 
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);

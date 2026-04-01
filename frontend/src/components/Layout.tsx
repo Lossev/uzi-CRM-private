@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
+import { useTheme } from '@/hooks/useTheme'
 import {
   LayoutDashboard,
   CalendarDays,
@@ -12,11 +13,12 @@ import {
   Stethoscope,
   Sun,
   Moon,
+  Sunset,
   RefreshCw,
   Clock,
+  FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useTheme } from '@/hooks/useTheme'
 
 const navItems = [
   { path: '/admin/dashboard', label: 'Дашборд', icon: LayoutDashboard },
@@ -26,6 +28,7 @@ const navItems = [
   { path: '/admin/recurring', label: 'Повторяющиеся', icon: RefreshCw },
   { path: '/admin/waitlist', label: 'Очередь', icon: Clock },
   { path: '/admin/revenue', label: 'Выручка', icon: DollarSign },
+  { path: '/admin/reports', label: 'Отчеты', icon: FileText },
   { path: '/admin/services', label: 'Услуги', icon: Stethoscope },
   { path: '/admin/settings', label: 'Настройки', icon: Settings, adminOnly: true },
 ]
@@ -34,7 +37,7 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
-  const { theme, toggleTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
 
   const handleLogout = () => {
     logout()
@@ -53,45 +56,82 @@ export default function Layout() {
           </Link>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1">
-          {navItems.map((item) => {
-            if (item.adminOnly && user?.role !== 'ADMIN') return null
-            const Icon = item.icon
-            const isActive = location.pathname === item.path
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            )
-          })}
+        <nav className="flex-1 p-4 flex flex-col">
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              if (item.adminOnly && user?.role !== 'ADMIN') return null
+              const Icon = item.icon
+              const isActive = location.pathname === item.path
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              )
+            })}
+          </div>
+          <div className="flex gap-1 mt-auto p-1 bg-muted/50 rounded-lg">
+            <button
+              onClick={() => setTheme('light')}
+              className={cn(
+                'flex-1 flex items-center justify-center p-2 rounded-md transition-all',
+                theme === 'light'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+              title="Светлая тема"
+            >
+              <Sun className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setTheme('warm')}
+              className={cn(
+                'flex-1 flex items-center justify-center p-2 rounded-md transition-all',
+                theme === 'warm'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+              title="Тёплая тема"
+            >
+              <Sunset className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setTheme('dark')}
+              className={cn(
+                'flex-1 flex items-center justify-center p-2 rounded-md transition-all',
+                theme === 'dark'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+              title="Тёмная тема"
+            >
+              <Moon className="h-4 w-4" />
+            </button>
+          </div>
         </nav>
         
         <div className="p-4 border-t">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-              <span className="text-xs font-medium">{user?.name?.charAt(0)}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {user?.role === 'ADMIN' ? 'Админ' : 'Ассистент'}
-              </p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-8 w-8">
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="h-8 w-8">
-              <LogOut className="h-4 w-4" />
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              {user?.role === 'ADMIN' ? 'Администратор' : 'Ассистент'}
+            </span>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleLogout} 
+              className="h-10 w-10"
+              title="Выйти"
+            >
+              <LogOut className="h-5 w-5" />
             </Button>
           </div>
         </div>
@@ -104,9 +144,6 @@ export default function Layout() {
               УЗИ Кабинет
             </Link>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" onClick={toggleTheme}>
-                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </Button>
               <Button variant="ghost" size="icon" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" />
               </Button>
@@ -135,6 +172,39 @@ export default function Layout() {
               </Link>
             )
           })}
+          <button
+            onClick={() => setTheme('light')}
+            className={cn(
+              'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all',
+              theme === 'light'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent'
+            )}
+          >
+            <Sun className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setTheme('warm')}
+            className={cn(
+              'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all',
+              theme === 'warm'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent'
+            )}
+          >
+            <Sunset className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setTheme('dark')}
+            className={cn(
+              'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all',
+              theme === 'dark'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent'
+            )}
+          >
+            <Moon className="h-4 w-4" />
+          </button>
         </nav>
 
         <main className="flex-1 p-6">

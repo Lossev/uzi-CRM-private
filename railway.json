@@ -1,0 +1,20 @@
+{
+  "$schema": "https://railway.app/schema.json",
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "npm run build",
+    "startCommand": "node backend/dist/index.js"
+  },
+  "environments": {
+    "development": {
+      "variables": {
+        "NODE_ENV": "development"
+      }
+    },
+    "production": {
+      "variables": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}

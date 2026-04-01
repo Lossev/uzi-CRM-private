@@ -76,6 +76,37 @@ export const sendReportSchema = z.object({
   sendToEmail: z.boolean().optional(),
 });
 
+export const emailSettingsSchema = z.object({
+  enabled: z.boolean(),
+  smtpHost: z.string().min(1),
+  smtpPort: z.number().int().min(1).max(65535),
+  smtpSecure: z.boolean(),
+  smtpUser: z.string().optional().nullable(),
+  smtpPass: z.string().optional().nullable(),
+  smtpFrom: z.string().optional().nullable(),
+  reportEmail: z.string().email().optional().nullable().or(z.literal('')),
+});
+
+export const telegramSettingsSchema = z.object({
+  enabled: z.boolean(),
+  botToken: z.string().optional().nullable(),
+  defaultChatId: z.string().optional().nullable(),
+  proxyEnabled: z.boolean().optional(),
+  proxyHost: z.string().optional().nullable(),
+  proxyPort: z.number().int().min(1).max(65535).optional().nullable(),
+  proxyUsername: z.string().optional().nullable(),
+  proxyPassword: z.string().optional().nullable(),
+});
+
+export const reportSettingsSchema = z.object({
+  includeTotalRevenue: z.boolean(),
+  includeAppointmentsCount: z.boolean(),
+  includeAverageCheck: z.boolean(),
+  includeRevenueByService: z.boolean(),
+  includeRevenueByStaff: z.boolean(),
+  includeDailyRevenue: z.boolean(),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type CreateClientInput = z.infer<typeof createClientSchema>;

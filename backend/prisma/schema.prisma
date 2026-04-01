@@ -7,6 +7,231 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model MaterialCategory {
+  id        Int                @id @default(autoincrement())
+  name      String             @unique
+  parentId  Int?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  materials Material[]
+  parent    MaterialCategory?  @relation("MaterialCategoryParent", fields: [parentId], references: [id])
+  children  MaterialCategory[] @relation("MaterialCategoryParent")
+}
+
+model Material {
+  id                Int                @id @default(autoincrement())
+  name              String
+  sku               String?            @unique
+  categoryId        Int?
+  unit              String
+  minQuantity       Int                @default(0)
+  maxQuantity       Int?
+  minStock          Int                @default(0)
+  unitPrice         Decimal            @db.Decimal(10, 2)
+  isActive          Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  category          MaterialCategory?  @relation(fields: [categoryId], references: [id])
+  usageRecords      MaterialUsage[]
+  serviceMaterials  ServiceMaterial[]
+  stockTransactions StockTransaction[]
+
+  @@index([categoryId])
+  @@index([sku])
+  @@index([isActive])
+}
+
+model ServiceMaterial {
+  id         Int      @id @default(autoincrement())
+  serviceId  Int
+  materialId Int
+  quantity   Float    @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  material   Material @relation(fields: [materialId], references: [id])
+  service    Service  @relation(fields: [serviceId], references: [id])
+
+  @@unique([serviceId, materialId])
+  @@index([serviceId])
+}
+
+model StockTransaction {
+  id            Int             @id @default(autoincrement())
+  materialId    Int
+  type          TransactionType
+  quantity      Int
+  unitPrice     Decimal?        @db.Decimal(10, 2)
+  totalAmount   Decimal?        @db.Decimal(10, 2)
+  notes         String?
+  supplier      String?
+  invoiceNumber String?
+  createdAt     DateTime        @default(now())
+  material      Material        @relation(fields: [materialId], references: [id])
+
+  @@index([materialId])
+  @@index([type])
+}
+
+model MaterialUsage {
+  id            Int         @id @default(autoincrement())
+  appointmentId Int
+  materialId    Int
+  quantity      Int
+  createdAt     DateTime    @default(now())
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  material      Material    @relation(fields: [materialId], references: [id])
+
+  @@index([appointmentId])
+  @@index([materialId])
+}
+
+model User {
+  id                  Int                    @id @default(autoincrement())
+  email               String                 @unique
+  password            String
+  name                String
+  role                UserRole               @default(ASSISTANT)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  actionLogs          ActionLog[]
+  createdAppointments Appointment[]          @relation("CreatedAppointments")
+  recurringApps       RecurringAppointment[] @relation("StaffRecurring")
+  refreshTokens       RefreshToken[]
+  waitlist            Waitlist[]             @relation("StaffWaitlist")
+}
+
+model Client {
+  id            Int                    @id @default(autoincrement())
+  name          String
+  phone         String                 @unique
+  email         String?
+  notes         String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  appointments  Appointment[]
+  recurringApps RecurringAppointment[]
+  waitlist      Waitlist[]
+}
+
+model Service {
+  id               Int                    @id @default(autoincrement())
+  name             String
+  description      String?
+  duration         Int                    @default(30)
+  price            Decimal                @db.Decimal(10, 2)
+  isActive         Boolean                @default(true)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  appointments     Appointment[]
+  recurringApps    RecurringAppointment[]
+  serviceMaterials ServiceMaterial[]
+  waitlist         Waitlist[]
+}
+
+model Appointment {
+  id             Int                   @id @default(autoincrement())
+  clientId       Int
+  serviceId      Int
+  staffId        Int
+  date           DateTime
+  status         AppointmentStatus     @default(SCHEDULED)
+  price          Decimal?              @db.Decimal(10, 2)
+  notes          String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  recurringId    Int?
+  client         Client                @relation(fields: [clientId], references: [id])
+  recurring      RecurringAppointment? @relation(fields: [recurringId], references: [id])
+  service        Service               @relation(fields: [serviceId], references: [id])
+  staff          User                  @relation("CreatedAppointments", fields: [staffId], references: [id])
+  materialUsages MaterialUsage[]
+
+  @@unique([date, serviceId])
+  @@index([date])
+  @@index([status])
+  @@index([clientId])
+  @@index([recurringId])
+}
+
+model ScheduleSettings {
+  id            Int      @id @default(1)
+  workStartTime String   @default("09:00")
+  workEndTime   String   @default("18:00")
+  breakStart    String?
+  breakEnd      String?
+  slotDuration  Int      @default(30)
+  workDays      String   @default("1,2,3,4,5")
+  updatedAt     DateTime @updatedAt
+}
+
+model ActionLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  action     String
+  entityType String
+  entityId   Int
+  details    String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model RecurringAppointment {
+  id             Int              @id @default(autoincrement())
+  clientId       Int
+  serviceId      Int
+  staffId        Int
+  startTime      String
+  duration       Int
+  recurringType  RecurringType    @default(WEEKLY)
+  dayOfWeek      Int
+  endType        RecurringEndType @default(NEVER)
+  endDate        DateTime?
+  maxOccurrences Int?
+  currentCount   Int              @default(0)
+  price          Decimal?         @db.Decimal(10, 2)
+  notes          String?
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  appointments   Appointment[]
+  client         Client           @relation(fields: [clientId], references: [id])
+  service        Service          @relation(fields: [serviceId], references: [id])
+  staff          User             @relation("StaffRecurring", fields: [staffId], references: [id])
+
+  @@index([staffId])
+  @@index([dayOfWeek])
+}
+
+model Waitlist {
+  id            Int       @id @default(autoincrement())
+  clientId      Int
+  serviceId     Int
+  staffId       Int?
+  preferredDate DateTime?
+  preferredTime String?
+  notes         String?
+  status        String    @default("WAITING")
+  notifiedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  client        Client    @relation(fields: [clientId], references: [id])
+  service       Service   @relation(fields: [serviceId], references: [id])
+  staff         User?     @relation("StaffWaitlist", fields: [staffId], references: [id])
+
+  @@index([status])
+  @@index([staffId])
+  @@index([serviceId])
+}
+
 enum UserRole {
   ADMIN
   ASSISTANT
@@ -37,235 +262,39 @@ enum TransactionType {
   ADJUSTMENT
 }
 
-model MaterialCategory {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  parentId   Int?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  materials  Material[]
-  parent    MaterialCategory? @relation("MaterialCategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
-  children   MaterialCategory[] @relation("MaterialCategoryParent")
+model EmailSettings {
+  id          Int      @id @default(1)
+  enabled     Boolean  @default(false)
+  smtpHost    String   @default("smtp.gmail.com")
+  smtpPort    Int      @default(587)
+  smtpSecure  Boolean  @default(false)
+  smtpUser    String?
+  smtpPass    String?
+  smtpFrom    String?
+  reportEmail String?
+  updatedAt   DateTime @updatedAt
 }
 
-model Material {
-  id             Int      @id @default(autoincrement())
-  name           String
-  sku            String?       @unique
-  categoryId    Int?
-  unit           String
-  minQuantity   Int      @default(0)
-  maxQuantity   Int?
-  minStock       Int      @default(0)
-  unitPrice      Decimal      @db.Decimal(10, 2)
-  isActive      Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  
-  category      MaterialCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  serviceMaterials ServiceMaterial[]
-  stockTransactions StockTransaction[]
-  usageRecords   MaterialUsage[]
-
-  @@index([categoryId])
-  @@index([sku])
-  @@index([isActive])
+model TelegramSettings {
+  id             Int      @id @default(1)
+  enabled        Boolean  @default(false)
+  botToken       String?
+  defaultChatId  String?
+  proxyEnabled   Boolean  @default(false)
+  proxyHost      String?
+  proxyPort      Int?
+  proxyUsername  String?
+  proxyPassword  String?
+  updatedAt      DateTime @updatedAt
 }
 
-model ServiceMaterial {
-  id             Int      @id @default(autoincrement())
-  serviceId   Int
-  materialId    Int
-  quantity      Float    @default(1)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime   @updatedAt
-
-  service        Service       @relation(fields: [serviceId], references: [id])
-  material      Material        @relation(fields: [materialId], references: [id])
-
-  @@unique([serviceId, materialId])
-  @@index([serviceId])
-}
-
-model StockTransaction {
-  id             Int      @id @default(autoincrement())
-  materialId    Int
-  type          TransactionType
-  quantity      Int
-  unitPrice     Decimal?    @db.Decimal(10, 2)
-  totalAmount   Decimal?    @db.Decimal(10, 2)
-  notes         String?
-  supplier      String?
-  invoiceNumber String?
-  createdAt     DateTime   @default(now())
-  material      Material        @relation(fields: [materialId], references: [id])
-
-  @@index([materialId])
-  @@index([type])
-}
-
-model MaterialUsage {
-  id             Int      @id @default(autoincrement())
-  appointmentId Int
-  materialId    Int
-  quantity      Int
-  createdAt     DateTime @default(now())
-
-  appointment      Appointment       @relation(fields: [appointmentId], references: [id])
-  material        Material        @relation(fields: [materialId], references: [id])
-
-  @@index([appointmentId])
-  @@index([materialId])
-}
-
-model User {
-  id           Int       @id @default(autoincrement())
-  email        String    @unique
-  password     String
-  name         String
-  role         UserRole  @default(ASSISTANT)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  
-  createdAppointments  Appointment[]        @relation("CreatedAppointments")
-  recurringApps        RecurringAppointment[] @relation("StaffRecurring")
-  waitlist             Waitlist[]           @relation("StaffWaitlist")
-  actionLogs           ActionLog[]
-  refreshTokens        RefreshToken[]
-}
-
-model Client {
-  id           Int          @id @default(autoincrement())
-  name         String
-  phone        String       @unique
-  email        String?
-  notes        String?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  appointments    Appointment[]
-  recurringApps   RecurringAppointment[]
-  waitlist        Waitlist[]
-}
-
-model Service {
-  id          Int          @id @default(autoincrement())
-  name        String
-  description String?
-  duration    Int          @default(30)
-  price       Decimal      @db.Decimal(10, 2)
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  appointments    Appointment[]
-  recurringApps   RecurringAppointment[]
-  waitlist        Waitlist[]
-  serviceMaterials ServiceMaterial[]
-}
-
-model Appointment {
-  id          Int             @id @default(autoincrement())
-  clientId    Int
-  serviceId   Int
-  staffId     Int
-  date        DateTime
-  status      AppointmentStatus @default(SCHEDULED)
-  price       Decimal?        @db.Decimal(10, 2)
-  notes       String?
-  recurringId Int?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  
-  client      Client          @relation(fields: [clientId], references: [id])
-  service     Service         @relation(fields: [serviceId], references: [id])
-  staff       User            @relation("CreatedAppointments", fields: [staffId], references: [id])
-  recurring   RecurringAppointment? @relation(fields: [recurringId], references: [id])
-  materialUsages MaterialUsage[]
-
-  @@unique([date, serviceId])
-  @@index([date])
-  @@index([status])
-  @@index([clientId])
-  @@index([recurringId])
-}
-
-model ScheduleSettings {
-  id              Int      @id @default(1)
-  workStartTime   String   @default("09:00")
-  workEndTime     String   @default("18:00")
-  breakStart      String?
-  breakEnd        String?
-  slotDuration    Int      @default(30)
-  workDays        String   @default("1,2,3,4,5")
-  updatedAt       DateTime @updatedAt
-}
-
-model ActionLog {
-  id           Int      @id @default(autoincrement())
-  userId       Int
-  action       String
-  entityType   String
-  entityId     Int
-  details      String?
-  createdAt    DateTime @default(now())
-  
-  user         User     @relation(fields: [userId], references: [id])
-}
-
-model RefreshToken {
-  id        Int      @id @default(autoincrement())
-  token     String   @unique
-  userId    Int
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-}
-
-model RecurringAppointment {
-  id              Int              @id @default(autoincrement())
-  clientId        Int
-  serviceId       Int
-  staffId         Int
-  startTime       String
-  duration        Int
-  recurringType   RecurringType    @default(WEEKLY)
-  dayOfWeek       Int
-  endType         RecurringEndType @default(NEVER)
-  endDate         DateTime?
-  maxOccurrences  Int?
-  currentCount    Int              @default(0)
-  price           Decimal?         @db.Decimal(10, 2)
-  notes           String?
-  isActive        Boolean          @default(true)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
-  client          Client           @relation(fields: [clientId], references: [id])
-  service         Service          @relation(fields: [serviceId], references: [id])
-  staff           User             @relation("StaffRecurring", fields: [staffId], references: [id])
-  appointments    Appointment[]
-  
-  @@index([staffId])
-  @@index([dayOfWeek])
-}
-
-model Waitlist {
-  id           Int      @id @default(autoincrement())
-  clientId     Int
-  serviceId    Int
-  staffId      Int?
-  preferredDate DateTime?
-  preferredTime String?
-  notes        String?
-  status       String   @default("WAITING")
-  notifiedAt   DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  client       Client   @relation(fields: [clientId], references: [id])
-  service      Service  @relation(fields: [serviceId], references: [id])
-  staff        User?    @relation("StaffWaitlist", fields: [staffId], references: [id])
-  
-  @@index([status])
-  @@index([staffId])
-  @@index([serviceId])
+model ReportSettings {
+  id                      Int      @id @default(1)
+  includeTotalRevenue     Boolean  @default(true)
+  includeAppointmentsCount Boolean @default(true)
+  includeAverageCheck     Boolean  @default(true)
+  includeRevenueByService Boolean  @default(true)
+  includeRevenueByStaff   Boolean  @default(true)
+  includeDailyRevenue     Boolean  @default(true)
+  updatedAt               DateTime @updatedAt
 }

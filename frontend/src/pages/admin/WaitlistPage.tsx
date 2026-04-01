@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Users, Plus, Calendar, Clock, Phone, CheckCircle, XCircle } from 'lucide-react'
+import { Users, Plus, Calendar, Clock, Phone, XCircle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -237,10 +237,7 @@ export default function WaitlistPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card variant="elevated">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Clock className="h-4 w-4 text-amber-500" />
-              Ожидают
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Ожидают</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.waiting}</div>
@@ -248,10 +245,7 @@ export default function WaitlistPage() {
         </Card>
         <Card variant="elevated">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Phone className="h-4 w-4 text-blue-500" />
-              Уведомлены
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Уведомлены</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.notified}</div>
@@ -259,10 +253,7 @@ export default function WaitlistPage() {
         </Card>
         <Card variant="elevated">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              Записаны
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Записаны</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.converted}</div>
